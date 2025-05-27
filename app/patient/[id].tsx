@@ -9,6 +9,7 @@ import {
   Platform,
   Modal,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { patients } from '../../lib/patient-data';
@@ -16,7 +17,8 @@ import ChatMessage from '../../components/ChatMessage';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faCircleInfo } from '@fortawesome/free-solid-svg-icons';
 import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
-
+import '../../lib/icons';
+import { getAIResponse, AIChatMessage } from '../../lib/ai-service';
 
 import Banner from '../../components/Banner';
 import PointsModal from '../../components/PointsModal';
@@ -38,6 +40,7 @@ export default function PatientScreen() {
   const [attempts, setAttempts] = useState({ test: 0, diagnosis: 0 });
   const [testScore, setTestScore] = useState<number | null>(null);
   const [diagnosisScore, setDiagnosisScore] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [messages, setMessages] = useState([
     {
@@ -67,8 +70,26 @@ export default function PatientScreen() {
     }, 100);
   };
 
-  const send = () => {
-    if (step === 'done') return;
+  const getAIMessages = (): AIChatMessage[] => {
+    const systemMessage: AIChatMessage = {
+      role: 'system',
+      content: `You are a senior doctor in a teaching hospital. You are helping a junior doctor diagnose a patient. The patient is a ${patient.age}-year-old ${patient.gender.toLowerCase()}${
+        patient.history ? ` with a history of ${patient.history}` : ''
+      }. They present with ${patient.symptoms.toLowerCase()}. ${
+        patient.additionalInfo ? patient.additionalInfo + '.' : ''
+      } Your role is to guide the junior doctor through the diagnostic process. Be professional but encouraging.`
+    };
+
+    const chatMessages: AIChatMessage[] = messages.map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text
+    }));
+
+    return [systemMessage, ...chatMessages];
+  };
+
+  const send = async () => {
+    if (step === 'done' || !input.trim()) return;
 
     const normalized = input.trim().toLowerCase();
     const userMsg = {
@@ -96,7 +117,7 @@ export default function PatientScreen() {
         setStep('diagnosis');
       } else if (isCorrect) {
         score = updatedAttempts === 1 ? 5 : Math.max(5 - 2 * (updatedAttempts - 1), 0);
-        text = `✅ Correct. Here's the result: ${patient.additionalInfo}\n\nWhat’s your diagnosis?`;
+        text = `✅ Correct. Here's the result: ${patient.additionalInfo}\n\nWhat's your diagnosis?`;
         setTestScore(score);
         setStep('diagnosis');
       } else {
@@ -128,6 +149,27 @@ export default function PatientScreen() {
     setMessages(updatedMessages);
     setInput('');
     scrollToBottom();
+
+    // Get AI response
+    setIsLoading(true);
+    try {
+      const aiResponse = await getAIResponse(getAIMessages());
+      if (aiResponse.error) {
+        console.error('AI Error:', aiResponse.error);
+      } else if (aiResponse.message) {
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          sender: 'doctor',
+          header: `👩‍⚕️ SENIOR AI DOCTOR 🔊`,
+          text: aiResponse.message,
+        }]);
+        scrollToBottom();
+      }
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -197,17 +239,22 @@ export default function PatientScreen() {
               }}
             />
             <Pressable
-              onPress={input? send: undefined}
+              onPress={input ? send : undefined}
+              disabled={isLoading}
               style={{
                 backgroundColor: '#1C91F2',
                 padding: 10,
                 borderRadius: 25,
                 justifyContent: 'center',
                 alignItems: 'center',
+                opacity: isLoading ? 0.7 : 1,
               }}
             >
-              <FontAwesomeIcon icon={['fas', 'fa-paper-plane']} size={18} color="#fff" />
-              
+              {isLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <FontAwesomeIcon icon={['fas', 'paper-plane']} size={18} color="#fff" />
+              )}
             </Pressable>
           </View>
         )}
@@ -227,7 +274,7 @@ export default function PatientScreen() {
                     diagnosisScore: String(diagnosisScore ?? 0),
                     total: String(totalScore),
                     id: id as string,
-                  },
+                  }
                 })
               }
               style={{

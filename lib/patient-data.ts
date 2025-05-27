@@ -16,7 +16,7 @@ export const patients = {
     },
     "2": {
       id: "2",
-      name: "Alamelu",
+      name: "Dave",
       age: 55,
       gender: "Male",
       history: "Hypertension, smoker (30 pack-years)",
@@ -40,7 +40,7 @@ export const patients = {
     },
     "4": {
       id: "4",
-      name: "Unknown",
+      name: "Gotham",
       age: 68,
       gender: "Male",
       history: "COPD on home oxygen",
@@ -52,7 +52,7 @@ export const patients = {
     },
     "5": {
       id: "5",
-      name: "Unknown",
+      name: "Akansha",
       age: 8,
       gender: "Female",
       history: "Recent exposure to measles in daycare",
@@ -64,7 +64,7 @@ export const patients = {
     },
     "6": {
       id: "6",
-      name: "Unknown",
+      name: "Vidyut",
       age: 45,
       gender: "Male",
       history: "Obesity, family history of diabetes",

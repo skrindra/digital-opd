@@ -41,12 +41,12 @@ export default function ScoreScreen() {
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       {/* Banner */}
       <Banner
-        name={name}
-        age={age}
-        gender={gender}
+        name={name as string}
+        age={age as string}
+        gender={gender as string}
         totalScore={totalScore}
         onInfoPress={() => setInfoVisible(true)}
-        />
+      />
 
       {/* POINTS MODAL */}
       <PointsModal
@@ -103,8 +103,8 @@ export default function ScoreScreen() {
             if (nextId) {
               router.push(`/patient/${nextId}`);
             } else {
-              Alert.alert('🎉 Done!', 'You’ve completed all cases.', [
-                { text: 'Back to Home', onPress: () => router.push('/') },
+              Alert.alert("🎉 Done!", "You've completed all cases.", [
+                { text: "Back to Home", onPress: () => router.push("/") },
               ]);
             }
           }}

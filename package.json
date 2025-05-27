@@ -9,15 +9,19 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
     "@expo-google-fonts/rubik": "^0.3.0",
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/react-native-fontawesome": "^0.3.2",
+    "dotenv": "^16.5.0",
     "expo": "~53.0.9",
     "expo-font": "~13.3.1",
     "expo-router": "^5.0.7",
     "expo-splash-screen": "~0.30.8",
+    "expo-sqlite": "~15.2.10",
     "expo-status-bar": "~2.2.3",
+    "openai": "^4.103.0",
     "react": "19.0.0",
     "react-native": "0.79.2",
     "react-native-paper": "^5.14.5",
@@ -26,7 +30,9 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@types/node": "^22.15.21",
     "@types/react": "~19.0.14",
+    "@types/react-native": "^0.73.0",
     "typescript": "~5.8.3"
   },
   "private": true
