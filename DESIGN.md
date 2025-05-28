@@ -15,16 +15,58 @@
 - Points reward first-try accuracy (10 pts max; –2 per extra attempt; 0 if contra-indicated).
 
 ## 2. Architecture Sketch
-┌──────────────────┐ WebSockets ┌───────────────────┐
-│ Expo App (RN) │◀────────────────────────▶│ Express Backend │
-│ ┌──────────────┐ │ /sync (REST) │ ┌───────────────┐ │
-│ │ Chat Screens │ │ ┌────────────────────┐ │ │ AI + Function │ │
-│ └──────────────┘ │ │ TursoDB/SQLite ├──▶│ │ Handlers │ │
-│ ┌──────────────┐ │ │ (actions queue, │ │ └───────────────┘ │
-│ │ Sync Banner │ │ │ sessions table) │ │ │
-│ └──────────────┘ │ └────────────────────┘ └───────────────────┘
-└──────────────────┘
 
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           Expo App (React Native)                       │
+│                                                                         │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐      │
+│  │   Chat Screens  │    │   Sync Banner   │    │  Points Modal   │      │
+│  └─────────────────┘    └─────────────────┘    └─────────────────┘      │
+│                                                                         │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │
+                                │ WebSockets
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Express Backend Server                          │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │                      TursoDB/SQLite                             │    │
+│  │                                                                 │    │
+│  │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐  │    │
+│  │  │  Actions Queue  │    │  Sessions Table │    │  User Data  │  │    │
+│  │  └─────────────────┘    └─────────────────┘    └─────────────┘  │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │                      AI + Function Handlers                     │    │
+│  │                                                                 │    │
+│  │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐  │    │
+│  │  │  Chat Handler   │    │  Score Handler  │    │  Sync Logic │  │    │
+│  │  └─────────────────┘    └─────────────────┘    └─────────────┘  │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Components:
+
+1. **Expo App (React Native)**
+   - Chat Screens: Main interface for doctor-AI interaction
+   - Sync Banner: Shows connection status
+   - Points Modal: Displays scoring information
+
+2. **Express Backend**
+   - WebSocket Server: Real-time communication
+   - TursoDB/SQLite: Persistent storage
+   - AI + Function Handlers: Business logic
+
+3. **Data Flow**
+   - Real-time: WebSocket connection
+   - Sync: REST API endpoints
+   - Storage: SQLite database operations
 
 ## 3. Data Model / Schema
 - **patients** (static JSON or DB)
@@ -36,7 +78,7 @@
 
 ## 4. Offline & Sync Flow
 1. **Action**: user submits test or diagnosis → insert into `actions` with `synced=0`.
-2. **Banner** shows “Offline” if no network.
+2. **Banner** shows "Offline" if no network.
 3. On reconnect:
    - Read all `synced=0` actions.
    - Batch-upload via `POST /sync` to backend.
@@ -70,4 +112,3 @@
 - **Open**: exact retry UX for contra-indicated tests.
 - **Open**: LLM prompts and fallback when offline.
 - **Open**: extending to add haptic feedback or Detox tests.
-
