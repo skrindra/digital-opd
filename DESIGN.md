@@ -17,38 +17,15 @@
 ## 2. Architecture Sketch
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│                    Expo App (React Native)                         │
-│                                                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
-│  │ Chat Screens │  │ Sync Banner  │  │ Points Modal │              │
-│  └──────────────┘  └──────────────┘  └──────────────┘              │
-│                                                                    │
-└────────────────────────────┬────────────────────────────────────── ┘
-                             │
-                             │ WebSockets
-                             │
-                             ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                  Express Backend Server                            │
-│                                                                    │
-│  ┌────────────────────────────────────────────────────────────┐    │
-│  │                  TursoDB / SQLite                          │    │
-│  │                                                            │    │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │    │
-│  │  │ ActionsQueue │  │ SessionsTbl  │  │  User Data   │      │    │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘      │    │
-│  └────────────────────────────────────────────────────────────┘    │
-│                                                                    │
-│  ┌────────────────────────────────────────────────────────────┐    │
-│  │               AI + Function Handlers                       │    │
-│  │                                                            │    │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │    │
-│  │  │ ChatHandler  │  │ ScoreHandler │  │  Sync Logic  │      │    │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘      │    │
-│  └────────────────────────────────────────────────────────────┘    │
-│                                                                    │
-└────────────────────────────────────────────────────────────────────┘
+┌──────────────────┐ WebSockets             ┌───────────────────┐
+│ Expo App (RN)    │◀─────────────────────▶ │ Express Backend   │
+│ ┌──────────────┐ │ /sync (REST)           │ ┌───────────────┐ |
+│ │ Chat Screens │ │ ┌────────────────────┐ │ │ AI + Function │ │
+│ └──────────────┘ │ │ TursoDB/SQLite     ├──▶│ Handlers      │ │
+│ ┌──────────────┐ │ │ (actions queue,    │ │ └───────────────┘ │
+│ │ Sync Banner  │ │ │ sessions table)    │ │                   │
+│ └──────────────┘ │ └────────────────────┘ └───────────────────┘
+└──────────────────┘
 
 ```
 
@@ -71,7 +48,7 @@
 
 ## 3. Data Model / Schema
 - **patients** (static JSON or DB)
-  - `id`, `name`, `age`, `gender`, `history`, `symptoms`, `additionalInfo`, `correctTest`, `correctDiagnosis`, `contraIndicatedTests?`
+  - `id`, `name`, `age`, `gender`, `history`, `symptoms`, `additionalInfo`, `correctTest`, `correctDiagnosis`, `contraIndicatedTests`
 - **actions** (SQLite)
   - `id`, `patientId`, `type` (‘test’/‘diagnosis’), `input`, `result` (‘correct’, ‘incorrect’, ‘contra’), `points`, `timestamp`, `synced` (0/1)
 - **sessions**
