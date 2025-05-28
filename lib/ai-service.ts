@@ -29,7 +29,7 @@ export async function getAIResponse(
   try {
     if (provider === 'openai') {
       const response = await openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: messages.map(msg => ({
           role: msg.role,
           content: msg.content,
@@ -64,7 +64,7 @@ export async function getAIResponse(
         // If Anthropic fails, fallback to OpenAI
         console.warn('Anthropic API failed, falling back to OpenAI:', anthropicError);
         const response = await openai.chat.completions.create({
-          model: 'gpt-4-turbo-preview',
+          model: 'gpt-4o-mini',
           messages: messages.map(msg => ({
             role: msg.role,
             content: msg.content,

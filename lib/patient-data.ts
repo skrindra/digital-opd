@@ -7,12 +7,9 @@ export const patients = {
       history: "Gravida 2, Para 1, 28 weeks gestation",
       symptoms: "Mild vaginal bleeding, lower abdominal pain",
       additionalInfo: "Uterine tenderness on palpation; fetal heart tones absent",
-    //   correctTest: "Bedside ultrasound and physical exam",
-    //   correctDiagnosis: "Abruptio placentae",
-    //   contraIndicatedTests: ["digital vaginal exam", "ct scan", "mri"]
-    correctTest: "t",
-    correctDiagnosis: "d",
-    contraIndicatedTests: ["c", "c", "c"]
+      correctTest: "Bedside ultrasound and physical exam",
+      correctDiagnosis: "Abruptio placentae",
+      contraIndicatedTests: ["digital vaginal exam", "ct scan", "mri"]
     },
     "2": {
       id: "2",

@@ -15,8 +15,6 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { patients } from '../../lib/patient-data';
 import ChatMessage from '../../components/ChatMessage';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faCircleInfo } from '@fortawesome/free-solid-svg-icons';
-import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import '../../lib/icons';
 import { getAIResponse, AIChatMessage } from '../../lib/ai-service';
 
@@ -52,13 +50,11 @@ export default function PatientScreen() {
     },
     {
       id: 2,
-      sender: 'doctor',
+      sender: 'assistant',
       header: `👩‍⚕️ SENIOR AI DOCTOR 🔊`,
-      text: `The patient is a ${patient.age}-year-old ${patient.gender.toLowerCase()}${
-        patient.history ? ` with a history of ${patient.history}` : ''
-      }. ${patient.gender === 'Male' ? 'He' : 'She'} presents with ${patient.symptoms.toLowerCase()}. ${
-        patient.additionalInfo ? patient.additionalInfo + '.' : ''
-      } Let's go to the lab to diagnose further. What test should we run?`,
+      text: `Case Brief: ${patient.age}-year-old ${patient.gender.toLowerCase()}${
+        patient.history ? ` with ${patient.history}` : ''
+      } presenting with ${patient.symptoms.toLowerCase()}.\n\nWhat diagnostic test would you recommend?`,
     },
   ]);
 
@@ -70,17 +66,61 @@ export default function PatientScreen() {
     }, 100);
   };
 
-  const getAIMessages = (): AIChatMessage[] => {
+    //   get the updated conversation history or message list
+  const getAIMessages = (currentMessages: typeof messages): AIChatMessage[] => {
     const systemMessage: AIChatMessage = {
       role: 'system',
       content: `You are a senior doctor in a teaching hospital. You are helping a junior doctor diagnose a patient. The patient is a ${patient.age}-year-old ${patient.gender.toLowerCase()}${
         patient.history ? ` with a history of ${patient.history}` : ''
       }. They present with ${patient.symptoms.toLowerCase()}. ${
         patient.additionalInfo ? patient.additionalInfo + '.' : ''
-      } Your role is to guide the junior doctor through the diagnostic process. Be professional but encouraging.`
+      }
+
+      IMPORTANT: You must enforce the correct phase order:
+      - In the test phase (when user hasn't suggested the correct test yet):
+        * Only evaluate test suggestions
+        * If user suggests a diagnosis, respond with "INCORRECT_TEST:" and guide them to suggest a test first
+        * Do not evaluate or accept any diagnosis until the correct test has been suggested
+      - In the diagnosis phase (after correct test has been suggested):
+        * Only evaluate diagnosis suggestions
+        * If user suggests another test, remind them they need to provide a diagnosis
+
+      Your response MUST start with one of these markers ONLY when evaluating a test or diagnosis suggestion:
+      For tests:
+      - "CORRECT_TEST:" if the test concept matches completely (all required components present)
+      - "CONTRA_TEST:" if the test is in the contra-indicated list (MUST use this exact marker for any test in ${JSON.stringify(patient.contraIndicatedTests)})
+      - "INCORRECT_TEST:" for any other test
+
+      For diagnoses:
+      - "CORRECT_DIAGNOSIS:" if the diagnosis concept matches completely (ONLY in diagnosis phase)
+      - "INCORRECT_DIAGNOSIS:" for any other diagnosis (ONLY in diagnosis phase)
+
+      After the marker, provide your response:
+      - For correct test: First briefly explain the test, then share the results: "${patient.additionalInfo}", and finally ask for diagnosis
+      - For contra-indicated test: Start with "⚠️ CAUTION: " and briefly explain why this test is not appropriate in this specific case. Focus on:
+        * The specific risks or complications for this patient
+        * Why this test could delay critical care
+        * What type of test would be more appropriate (without revealing the exact test)
+        Then ask for their diagnosis
+      - For incorrect test: Provide educational guidance without revealing the answer. Consider:
+        * What aspects of the case suggest this test might not be optimal?
+        * What key findings would we need to confirm?
+        * What type of test would best visualize/assess the affected area?
+      - For correct diagnosis: Congratulate them
+      - For incorrect diagnosis: Provide constructive feedback without revealing the answer. Consider:
+        * What aspects of the case history are important?
+        * What do the test results suggest?
+        * What other conditions should be considered?
+
+      For general conversation or questions (no markers):
+      - Be professional and helpful
+      - Guide the conversation back to the diagnostic process
+      - Remind them to suggest a test or diagnosis when appropriate
+
+      Keep responses brief and professional. Remember, you're teaching a junior doctor, so be encouraging while maintaining high standards. Never reveal the correct answer directly - guide them to discover it through the clinical reasoning process.`
     };
 
-    const chatMessages: AIChatMessage[] = messages.map(msg => ({
+    const chatMessages: AIChatMessage[] = currentMessages.map(msg => ({
       role: msg.sender === 'user' ? 'user' : 'assistant',
       content: msg.text
     }));
@@ -99,70 +139,103 @@ export default function PatientScreen() {
       text: input,
     };
     const next = [...messages, userMsg];
-
-    let updatedMessages = next;
-    let text = '';
-    let header = '';
-    let score: number | null = null;
-
-    if (step === 'test') {
-      const isCorrect = normalized === patient.correctTest.toLowerCase();
-      const isContra = patient.contraIndicatedTests?.includes(normalized);
-      const updatedAttempts = attempts.test + 1;
-
-      if (isContra) {
-        score = 0;
-        text = `⚠️ That test is *contra-indicated* and not appropriate in this case.`;
-        setTestScore(score);
-        setStep('diagnosis');
-      } else if (isCorrect) {
-        score = updatedAttempts === 1 ? 5 : Math.max(5 - 2 * (updatedAttempts - 1), 0);
-        text = `✅ Correct. Here's the result: ${patient.additionalInfo}\n\nWhat's your diagnosis?`;
-        setTestScore(score);
-        setStep('diagnosis');
-      } else {
-        text = `❌ That test may not help. Consider something that visualizes the affected area more clearly.`;
-      }
-
-      header = `👩‍⚕️ SENIOR AI DOCTOR 🔊${score !== null ? `  ${score}/5 Points` : ''}`;
-      updatedMessages = [...next, { id: Date.now() + 1, sender: 'doctor', header, text }];
-      setAttempts((prev) => ({ ...prev, test: updatedAttempts }));
-
-    } else if (step === 'diagnosis') {
-      const isCorrect = normalized === patient.correctDiagnosis.toLowerCase();
-      const updatedAttempts = attempts.diagnosis + 1;
-
-      if (isCorrect) {
-        score = updatedAttempts === 1 ? 5 : Math.max(5 - 2 * (updatedAttempts - 1), 0);
-        text = `✅ Correct! You've completed the case.`;
-        setDiagnosisScore(score);
-        setStep('done');
-      } else {
-        text = `❌ Incorrect diagnosis. Try again.`;
-      }
-
-      header = `👩‍⚕️ SENIOR AI DOCTOR 🔊${isCorrect ? `  ${score}/5 Points` : ''}`;
-      updatedMessages = [...next, { id: Date.now() + 1, sender: 'doctor', header, text }];
-      setAttempts((prev) => ({ ...prev, diagnosis: updatedAttempts }));
-    }
-
-    setMessages(updatedMessages);
+    setMessages(next);
     setInput('');
     scrollToBottom();
+
+    // Increment attempts counter at the start of each send
+    const updatedAttempts = { ...attempts };
+    if (step === 'test') {
+      updatedAttempts.test += 1;
+    } else if (step === 'diagnosis') {
+      updatedAttempts.diagnosis += 1;
+    }
+    setAttempts(updatedAttempts);
 
     // Get AI response
     setIsLoading(true);
     try {
-      const aiResponse = await getAIResponse(getAIMessages());
+      console.log('Sending messages to AI:', next.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })));
+      const aiResponse = await getAIResponse(getAIMessages(next));
       if (aiResponse.error) {
         console.error('AI Error:', aiResponse.error);
       } else if (aiResponse.message) {
-        setMessages(prev => [...prev, {
+        const responseText = aiResponse.message;
+        console.log('AI Response:', responseText);
+        let score: number | null = null;
+        let updatedStep = step;
+        let updatedTestScore = testScore;
+        let updatedDiagnosisScore = diagnosisScore;
+
+        // Parse the response marker
+        let marker = '';
+        if (responseText.startsWith('CORRECT_TEST:')) {
+          marker = 'CORRECT_TEST';
+          // Calculate score based on attempts
+          score = Math.max(5 - 2 * (updatedAttempts.test - 1), 0);
+          updatedTestScore = score;
+          updatedStep = 'diagnosis';
+        } else if (responseText.startsWith('CONTRA_TEST:')) {
+          marker = 'CONTRA_TEST';
+          score = 0;
+          updatedTestScore = score;
+          updatedStep = 'diagnosis';
+        } else if (responseText.startsWith('INCORRECT_TEST:')) {
+          marker = 'INCORRECT_TEST';
+        } else if (responseText.startsWith('CORRECT_DIAGNOSIS:') && step === 'diagnosis') {
+          marker = 'CORRECT_DIAGNOSIS';
+          // Calculate score based on attempts
+          score = Math.max(5 - 2 * (updatedAttempts.diagnosis - 1), 0);
+          updatedDiagnosisScore = score;
+          updatedStep = 'done';
+        } else if (responseText.startsWith('INCORRECT_DIAGNOSIS:') && step === 'diagnosis') {
+          marker = 'INCORRECT_DIAGNOSIS';
+        } else if (responseText.startsWith('CORRECT_DIAGNOSIS:') && step === 'test') {
+          // If user tries to give diagnosis in test phase, treat as incorrect test
+          marker = 'INCORRECT_TEST';
+        }
+
+        // If no marker found but response contains "CAUTION", treat as contra test
+        if (!marker && responseText.includes('CAUTION')) {
+          marker = 'CONTRA_TEST';
+          score = 0;
+          updatedTestScore = score;
+          updatedStep = 'diagnosis';
+        }
+
+        console.log('Response Analysis:', {
+          marker,
+          score,
+          updatedAttempts,
+          updatedStep,
+          updatedTestScore,
+          updatedDiagnosisScore
+        });
+
+        // Remove the marker from the response text
+        const cleanResponse = responseText.replace(/^(CORRECT|INCORRECT|CONTRA)_(TEST|DIAGNOSIS):/, '').trim();
+
+        // Only show points in header for correct/contra-indicated responses
+        const showPoints = marker === 'CORRECT_TEST' || marker === 'CONTRA_TEST' || marker === 'CORRECT_DIAGNOSIS';
+        const headerPoints = showPoints ? `  ${marker === 'CORRECT_DIAGNOSIS' ? updatedDiagnosisScore : updatedTestScore}/5 Points` : '';
+
+        console.log('Header Points:', { showPoints, headerPoints });
+
+        // Update all states at once
+        setStep(updatedStep);
+        setTestScore(updatedTestScore);
+        setDiagnosisScore(updatedDiagnosisScore);
+
+        // Add the new message with the updated score
+        const assistantMsg = {
           id: Date.now(),
-          sender: 'doctor',
-          header: `👩‍⚕️ SENIOR AI DOCTOR 🔊`,
-          text: aiResponse.message,
-        }]);
+          sender: 'assistant',
+          header: `👩‍⚕️ SENIOR AI DOCTOR 🔊${headerPoints}`,
+          text: cleanResponse,
+        };
+        console.log('Adding assistant message:', assistantMsg);
+        setMessages(prev => [...prev, assistantMsg]);
+
         scrollToBottom();
       }
     } catch (error) {
@@ -213,9 +286,38 @@ export default function PatientScreen() {
           />
         </View>
 
-        {/* INPUT */}
-        {step !== 'done' && (
-            <View
+        {/* INPUT or PASS/FAIL BUTTON */}
+        {step === 'done' ? (
+          <View style={{ alignItems: 'center', marginBottom: 30 }}>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: `/score/${id}`,
+                  params: {
+                    name,
+                    gender: patient.gender,
+                    age: String(patient.age),
+                    testScore: String(testScore ?? 0),
+                    diagnosisScore: String(diagnosisScore ?? 0),
+                    total: String(totalScore),
+                    id: id as string,
+                  }
+                })
+              }
+              style={{
+                backgroundColor: totalScore >= 7 ? '#4CAF50' : '#F44336',
+                paddingVertical: 12,
+                paddingHorizontal: 80,
+                borderRadius: 30,
+              }}
+            >
+              <Text style={{ fontSize: 16, color: '#fff', fontWeight: 'bold' }}>
+                {totalScore >= 7 ? 'Pass >>' : 'Fail >>'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -255,38 +357,6 @@ export default function PatientScreen() {
               ) : (
                 <FontAwesomeIcon icon={['fas', 'paper-plane']} size={18} color="#fff" />
               )}
-            </Pressable>
-          </View>
-        )}
-
-        {/* PASS/FAIL BUTTON */}
-        {step === 'done' && (
-          <View style={{ alignItems: 'center', marginBottom: 30 }}>
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: `/score/${id}`,
-                  params: {
-                    name,
-                    gender: patient.gender,
-                    age: String(patient.age),
-                    testScore: String(testScore ?? 0),
-                    diagnosisScore: String(diagnosisScore ?? 0),
-                    total: String(totalScore),
-                    id: id as string,
-                  }
-                })
-              }
-              style={{
-                backgroundColor: totalScore >= 7 ? '#4CAF50' : '#F44336',
-                paddingVertical: 12,
-                paddingHorizontal: 80,
-                borderRadius: 30,
-              }}
-            >
-              <Text style={{ fontSize: 16, color: '#fff', fontWeight: 'bold' }}>
-                {totalScore >= 7 ? 'Pass >>' : 'Fail >>'}
-              </Text>
             </Pressable>
           </View>
         )}
