@@ -7,6 +7,7 @@ import {
   Modal,
   Pressable,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import { getNextPatientId } from '../../lib/patient-data';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -98,26 +99,73 @@ export default function ScoreScreen() {
           alignItems: 'center',
         }}
       >
-        <TouchableOpacity
-          onPress={() => {
-            if (nextId) {
-              router.push(`/patient/${nextId}`);
-            } else {
-              Alert.alert("🎉 Done!", "You've completed all cases.", [
-                { text: "Back to Home", onPress: () => router.push("/") },
-              ]);
-            }
-          }}
-          style={{
-            backgroundColor: '#167ADF',
-            paddingVertical: 12,
-            paddingHorizontal: 98,
-            borderRadius: 10,
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>NEXT PATIENT</Text>
-        </TouchableOpacity>
+        {nextId ? (
+          <Pressable
+            style={styles.nextButton}
+            onPress={() => router.push(`/patient/${nextId}`)}
+          >
+            <Text style={styles.nextButtonText}>Next Patient</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.completionContainer}>
+            <Text style={styles.completionText}>🎉 All Cases Completed!</Text>
+            <View style={styles.completionButtons}>
+              <Pressable
+                style={[styles.completionButton, { backgroundColor: '#1C91F2' }]}
+                onPress={() => router.push('/')}
+              >
+                <Text style={styles.completionButtonText}>Home</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.completionButton, { backgroundColor: '#28a745' }]}
+                onPress={() => router.push('/patient/1')}
+              >
+                <Text style={styles.completionButtonText}>Retry</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  completionContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  completionText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1C91F2',
+    marginBottom: 20,
+  },
+  completionButtons: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  completionButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  completionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  nextButton: {
+    backgroundColor: '#167ADF',
+    paddingVertical: 12,
+    paddingHorizontal: 98,
+    borderRadius: 10,
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+});
